@@ -1,2 +1,1 @@
-# gptea
-Final Project for 4.043 Interaction Intelligence
+This is a starter template for [Learn Next.js](https://nextjs.org/learn).
