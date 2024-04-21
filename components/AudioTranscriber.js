@@ -254,7 +254,7 @@ const AudioTranscriber = ({ personId }) => {
         },
         {
           headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_URL}`,
+            Authorization: `Bearer ${API_KEY}`,
             "Content-Type": "application/json",
           },
           responseType: "arraybuffer",

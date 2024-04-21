@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import Image from "../../../lib/models/Image";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -17,6 +18,11 @@ export default async function handler(req, res) {
     });
     console.log("response ", response);
     const image = response.data[0].url;
+
+    // write image to database
+    await dbConnect();
+    const newImage = new Image({ url: image });
+    const savedImage = await newImage.save();
 
     return res.status(200).json({ image });
   } catch (error) {
