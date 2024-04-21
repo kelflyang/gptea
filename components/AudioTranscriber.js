@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import styles from "../styles/Home.module.css";
 import axios from "axios";
 
-const API_KEY = "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";
+const API_KEY = process.env.NEXT_PUBLIC_OPENAI;
 
 const AudioTranscriber = ({ personId }) => {
   const [memories, setMemories] = useState(null);
@@ -231,7 +231,7 @@ const AudioTranscriber = ({ personId }) => {
         },
         {
           headers: {
-            Authorization: `Bearer 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`,
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_URL}`,
             "Content-Type": "application/json",
           },
         }
@@ -254,7 +254,7 @@ const AudioTranscriber = ({ personId }) => {
         },
         {
           headers: {
-            Authorization: `Bearer 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`,
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_URL}`,
             "Content-Type": "application/json",
           },
           responseType: "arraybuffer",
