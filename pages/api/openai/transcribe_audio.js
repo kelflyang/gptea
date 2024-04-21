@@ -1,5 +1,3 @@
-// pages/api/microphone.js
-
 import OpenAI from "openai";
 const fs = require("fs");
 
