@@ -352,7 +352,15 @@ const AudioTranscriber = ({ personId }) => {
           </div>
         )}
 
-        {imageLink && <img src={imageLink}></img>}
+        {imageDescription && (
+          <p>
+            go to{" "}
+            <a href={"https://gptea-ten.vercel.app/api/load_image"}>
+              https://gptea-ten.vercel.app/api/load_image
+            </a>{" "}
+            to see the image
+          </p>
+        )}
       </div>
     </div>
   );
