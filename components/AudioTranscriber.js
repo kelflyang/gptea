@@ -236,7 +236,11 @@ const AudioTranscriber = ({ personId }) => {
           },
         }
       );
-      return response.data.data[0].url;
+
+      const res_ = await axios.post("/api/upload_image", {
+        url: response.data.data[0].url,
+      });
+      return;
     } catch (error) {
       console.error("Error calling API:", error);
       throw error;
