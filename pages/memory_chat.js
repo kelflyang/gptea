@@ -7,7 +7,7 @@ import axios from "axios";
 export default function MemoryChat() {
   return (
     <div className={styles.container}>
-      <Head>
+      {/* <Head>
         <title>gptea</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -18,7 +18,7 @@ export default function MemoryChat() {
             <Chat personIdFrom={"p2"} personIdTo={"p1"} />
           </div>
         </div>
-      </main>
+      </main> */}
     </div>
   );
 }
