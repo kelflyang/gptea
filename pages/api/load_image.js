@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const image = await Image.findOne({}, {}, { sort: { _id: -1 } });
     // console.log(image.buffer);
     const buffer = Buffer.from(image.buffer, "base64");
-    const imagePath = path.join(process.cwd(), "public", "test.png");
+    const imagePath = path.join(process.cwd(), "public", "test.jpg");
 
     fs.writeFileSync(imagePath, buffer);
     const imageData = fs.readFileSync(imagePath);
