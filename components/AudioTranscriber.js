@@ -227,7 +227,7 @@ const AudioTranscriber = ({ personId }) => {
         {
           prompt: imageDescription,
           size: "256x256",
-          response_format: "url",
+          response_format: "b64_json",
         },
         {
           headers: {
@@ -237,8 +237,11 @@ const AudioTranscriber = ({ personId }) => {
         }
       );
 
+      console.log("RESPONSE ", response);
+
       const res_ = await axios.post("/api/upload_image", {
         url: response.data.data[0].url,
+        buffer: response.data.data[0].b64_json,
       });
       return;
     } catch (error) {
