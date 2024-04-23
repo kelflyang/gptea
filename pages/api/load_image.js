@@ -4,6 +4,7 @@ import mime from "mime";
 import path from "path";
 
 const fs = require("fs");
+const pngToJpeg = require("png-to-jpeg");
 
 export default async function handler(req, res) {
   try {
@@ -12,12 +13,15 @@ export default async function handler(req, res) {
     const imagePath = "test.jpg";
     const contentType = mime.getType(imagePath);
 
-    // Set response headers
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Cache-Control", "public, max-age=86400"); // Cache the image for 1 day
+    const buffer = Buffer.from(image.buffer, "base64");
+    pngToJpeg({ quality: 90 })(buffer).then((output) => {
+      // Set response headers
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400"); // Cache the image for 1 day
 
-    // Send the Base64-encoded image data as the response
-    res.send(Buffer.from(image.buffer, "base64"));
+      // Send the Base64-encoded image data as the response
+      res.send(output);
+    });
   } catch (error) {
     console.error("Error writing to database:", error);
     return res.status(500).json({ message: "Internal Server Error" });

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import axios from "axios";
 
 export default function Chat({ personIdFrom, personIdTo }) {
   const [personFromMemories, setPersonFromMemories] = useState(null);
@@ -23,11 +24,45 @@ export default function Chat({ personIdFrom, personIdTo }) {
     fetchMemories(personIdTo);
   }, []);
 
+  const messages = useRef([
+    {
+      role: "system",
+      content: `You are mediating a conversation between the user and another person. You will represent another person and you have a list of their memories: ${
+        personFromMemories
+          ? "[" +
+            personFromMemories
+              .map((m) => {
+                m.memory;
+              })
+              .join(", ") +
+            "]"
+          : "[]"
+      }`,
+    },
+  ]);
+
   return (
     <>
       <h2>
         {personIdFrom} talking to {personIdTo}
       </h2>
+
+      <div>
+        <p>memory bank for {personIdFrom} (you)</p>
+        {personFromMemories &&
+          personFromMemories.map((m) => <li>{m.memory}</li>)}
+      </div>
+
+      <div>
+        <p>memory bank for {personIdTo} (other)</p>
+        {personToMemories && personToMemories.map((m) => <li>{m.memory}</li>)}
+      </div>
+
+      <div>
+        <h2>chat</h2>
+
+        <div>{messages.current}</div>
+      </div>
     </>
   );
 }
