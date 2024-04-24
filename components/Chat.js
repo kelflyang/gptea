@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
 export default function Chat({ personIdFrom, personIdTo }) {
+  const [pipeline, setPipeline] = useState(true);
   const [personFromMemories, setPersonFromMemories] = useState(null);
   const [personToMemories, setPersonToMemories] = useState(null);
   const mediaRecorder = useRef(null);
@@ -13,6 +14,7 @@ export default function Chat({ personIdFrom, personIdTo }) {
   const [audioBlob, setAudioBlob] = useState("");
 
   const [messages, setMessages] = useState([]);
+  const [messages2, setMessages2] = useState([]);
 
   const [info, setInfo] = useState({});
 
@@ -84,17 +86,44 @@ export default function Chat({ personIdFrom, personIdTo }) {
     console.log(info);
     setInfo(info);
 
-    const system = `Have a conversation with the user starting with this question:
+    const pipeline1Prompt = `Have a conversation with the user starting with this question:
 
    ${info.question}
     
-    Ask the questions such that it is relevant to this memory from another person: ${info.entry}
+    Ask the questions such that it is relevant to this memory from another person: ${
+      info.entry
+    }
     
     Then after three exchanges do as follows:
     
-    You are also given a transcript of a memory provided by the user's grandfather: ${info.entry} To conclude the conversation, relay the memory to the user in a narrative story. You can add in some details and embellish it.  Do not add any details you don't know to be true.  Refer to the user's grandpa as "your grandpa". Do not restate the memory or introduce the story. Just tell the story. `;
+    You are also given a transcript of a memory provided by the user's grandfather: ${
+      info.entry
+    } To conclude the conversation, relay the memory to the user in a narrative story. You can add in some details and embellish it.  Do not add any details you don't know to be true.  Refer to the user's grandpa as "your grandpa". Do not restate the memory or introduce the story. Just tell the story. Here is the list of stories already shared by your friend:
+    ${
+      fromMemories
+        ? "[" +
+          fromMemories
+            .map((m) => {
+              return `"${m.memory}"`;
+            })
+            .join(", ") +
+          "]"
+        : "[]"
+    }`;
 
-    setMessages([{ role: "system", content: system }]);
+    const pipeline2Prompt = `Your role is to ask someone about an unique experience they had or a follow up question to a previous experience they had. Imagine this person is a friend you had known for a long time but doesn’t know everything about.  Here is the list of stories already shared by your friend:  ${
+      fromMemories
+        ? "[" +
+          fromMemories
+            .map((m) => {
+              return `"${m.memory}"`;
+            })
+            .join(", ") +
+          "]"
+        : "[]"
+    }`;
+    setMessages([{ role: "system", content: pipeline1Prompt }]);
+    setMessages2([{ role: "system", content: pipeline2Prompt }]);
   }, []);
 
   useEffect(() => {
@@ -149,7 +178,7 @@ export default function Chat({ personIdFrom, personIdTo }) {
     };
   };
 
-  const handleSubmitRecording = async () => {
+  const handleSubmitRecording = async (pipeline) => {
     try {
       const reader = new FileReader();
       reader.onloadend = async () => {
@@ -165,10 +194,15 @@ export default function Chat({ personIdFrom, personIdTo }) {
         const data = await res.json();
         setTranscription(data.transcription);
 
-        setMessages([
-          ...messages,
-          { role: "user", content: data.transcription },
-        ]);
+        let m;
+        if (pipeline) {
+          m = [...messages, { role: "user", content: data.transcription }];
+
+          // setMessages(m);
+        } else {
+          m = [...messages2, { role: "user", content: data.transcription }];
+          // setMessages2(m);
+        }
 
         // get chat completion
         const response_ = await fetch(`/api/openai/chat`, {
@@ -177,17 +211,26 @@ export default function Chat({ personIdFrom, personIdTo }) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            messages: [
-              ...messages,
-              { role: "user", content: data.transcription },
-            ],
+            messages: m,
             model: "gpt-4",
           }),
         });
 
         const data_ = await response_.json();
 
-        setMessages([...messages, data_.completion]);
+        if (pipeline === true) {
+          setMessages([
+            ...messages,
+            { role: "user", content: data.transcription },
+            data_.completion,
+          ]);
+        } else {
+          setMessages2([
+            ...messages2,
+            { role: "user", content: data.transcription },
+            data_.completion,
+          ]);
+        }
       };
       reader.readAsDataURL(audioBlob);
     } catch (error) {
@@ -214,9 +257,30 @@ export default function Chat({ personIdFrom, personIdTo }) {
       </div>
 
       <div>
-        <h2>chat</h2>
+        <h2>chat (pipeline 1)</h2>
         {messages &&
           messages.map((m) => {
+            return (
+              <>
+                <h3>{m.role}</h3>
+                <p>{m.content}</p>
+              </>
+            );
+          })}
+      </div>
+
+      <button
+        onClick={() => {
+          setPipeline(!pipeline);
+        }}
+      >
+        switch to pipeline {pipeline ? 2 : 1}
+      </button>
+
+      <div>
+        <h2>chat (pipeline 2)</h2>
+        {messages2 &&
+          messages2.map((m) => {
             return (
               <>
                 <h3>{m.role}</h3>
@@ -231,7 +295,13 @@ export default function Chat({ personIdFrom, personIdTo }) {
         <div>
           <button onClick={handleStartRecording}>Start Recording</button>
           <button onClick={handleStopRecording}>Stop Recording</button>
-          <button onClick={handleSubmitRecording}>Submit</button>
+          <button
+            onClick={() => {
+              handleSubmitRecording(pipeline);
+            }}
+          >
+            Submit
+          </button>
           <audio src={audio && audio} controls></audio>
           <input
             id="audioFile"
