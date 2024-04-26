@@ -7,13 +7,13 @@ const openai = new OpenAI({
 
 export default async function handler(req, res) {
   fs.writeFileSync(
-    "/tmp/tmp.webm",
+    "public/audioFile/audio.webm",
     Buffer.from(req.body.audioBuffer, "base64")
   );
 
   try {
     const response = await openai.audio.transcriptions.create({
-      file: fs.createReadStream("/tmp/tmp.webm"),
+      file: fs.createReadStream("public/audioFile/audio.webm"),
       model: "whisper-1",
     });
 

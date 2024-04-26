@@ -190,16 +190,35 @@ const AudioTranscriber = ({ personId }) => {
   };
 
   const generateStort = async (keywords) => {
-    try {
-      const response = await axios.post("/api/openai/story", {
-        keywords,
-        relation: "grandfather",
-      });
-      if (!response.data.story) {
-        throw new Error("Failed to call API");
-      }
+    const messages = [
+      {
+        role: "system",
+        content: `You are mediating a conversation between the user and their grandfather. Given an input that is a transcription of a memory from their grandfather, tell the story to the user. Do not tell it in first person as if you are the grandfather. Do not mention the transcription. You can add in some details and embelish it.`,
+      },
+    ];
 
-      return response.data.story;
+    messages.push({ role: "user", content: keywords });
+
+    try {
+      const response = await axios.post(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          messages,
+          model: "gpt-4",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      // if (!response.data.story) {
+      //   throw new Error("Failed to call API");
+      // }
+
+      const completion = response.data.choices[0].message.content;
+      return completion;
     } catch (error) {
       console.error("Error calling API:", error);
       throw error;
