@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     pngToJpeg({ quality: 90 })(buffer).then((output) => {
       // Set response headers
       res.setHeader("Content-Type", contentType);
-      res.setHeader("Cache-Control", "public, max-age=86400"); // Cache the image for 1 day
+      // res.setHeader("Cache-Control", "public, max-age=86400"); // Cache the image for 1 day
 
       // Send the Base64-encoded image data as the response
       res.send(output);
