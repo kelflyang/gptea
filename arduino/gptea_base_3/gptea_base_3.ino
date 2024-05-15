@@ -7,12 +7,25 @@ int EN_PIN = 3;
 #define motorInterfaceType 1
 AccelStepper rotation = AccelStepper(motorInterfaceType, stepPin1, dirPin1);
 
+//encoder
+#include <Encoder.h>
+#define outputA 10
+#define outputB 11
+Encoder encoder(outputA, outputB);
+long currentPosition = 0;
+long previousPosition = 0;
+long lastReadings[5] = {0, 0, 0, 0, 0};
+int index = 0;
+
 #define BUFFER_SIZE 16 // Set the buffer size based on the size of 4 integers (4 bytes each)
 byte buffer[BUFFER_SIZE]; // Create a buffer to store incoming bytes
 
 int currentPotVal = 0;
 int recordingState = 0;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
 
 
 void moveMotorBackAndForth(int repeats) {
@@ -39,6 +52,11 @@ void hapticBuzz(){
    delay(50);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+
+
 void setup() {
  Serial.begin(115200);
  while (!Serial) {
@@ -54,6 +72,11 @@ void setup() {
   pinMode(8, INPUT); //Hall Effect  
   pinMode(2, OUTPUT);  //Haptic Motor
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+
 
 void loop() {
  static bool direction = true; // State variable to toggle direction
@@ -71,6 +94,12 @@ void loop() {
  }
 
  // 2. Manual Motor control
+ int result = checkEncoder();
+  if (result == 1) {
+    Serial.println("CW");
+  } else if (result == -1) {
+    Serial.println("CCW");
+  }
 
 
   // Check if data is available to read from the serial buffer.
@@ -113,6 +142,46 @@ void loop() {
   }
 
 }
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+
+int checkEncoder() {
+  currentPosition = encoder.read();
+
+  // Moving average filter for debouncing
+  lastReadings[index] = currentPosition;
+  index = (index + 1) % 5;
+
+  long averageReading = 0;
+  for (int i = 0; i < 5; i++) {
+    averageReading += lastReadings[i];
+  }
+  averageReading /= 5;
+
+  int result = 0; // Default to no movement
+
+  if (averageReading != previousPosition) {
+    if (averageReading > previousPosition) {
+      result = 1; // CW
+    } else if (averageReading < previousPosition) {
+      result = -1; // CCW
+    }
+    previousPosition = averageReading;
+  }
+
+  // Slight delay for debouncing
+  delay(5);
+
+  return result;
+}
+
+
+
  
  // // Only update the target position when needed
  // if (rotation.distanceToGo() == 0) { // Check if motor has reached the target
