@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
+const API_KEY = process.env.NEXT_PUBLIC_OPENAI;
+
 export default function Chat({ personIdFrom, personIdTo }) {
   const [pipeline, setPipeline] = useState(true);
   const [personFromMemories, setPersonFromMemories] = useState(null);
@@ -32,20 +34,14 @@ export default function Chat({ personIdFrom, personIdTo }) {
     }
   };
 
-  useEffect(async () => {
+  const updatePrompt = async () => {
     const fromMemories = await fetchMemories(personIdFrom);
     const toMemories = await fetchMemories(personIdTo);
 
     setPersonFromMemories(fromMemories);
     setPersonToMemories(toMemories);
 
-    const response = await axios.post("/api/openai/chat", {
-      messages: [
-        {
-          role: "system",
-          content: `The goal is connect two people through each other’s stories. Let’s call the two people User A and User B. You will be interacting with User A only. Your role is to take in a list of entries from User A and a list of entries from User B, based on these entries find clues of connection between User A and User B. Generate one question to be asked to User A. User A doesn’t know what User B has written. Ask the question in a way so that User A’s response will lead to a connection with one of User B’s entries.
-  
-          Here is the list of stories already shared by User A.
+    const pipeline1Prompt = `Memories of user:
           ${
             fromMemories
               ? "[" +
@@ -57,8 +53,10 @@ export default function Chat({ personIdFrom, personIdTo }) {
                 "]"
               : "[]"
           }
+
+          \n
           
-          Here is the list of stories already shared by User B:
+          Memories of the user's grandpa shared with you:
           ${
             toMemories
               ? "[" +
@@ -71,59 +69,18 @@ export default function Chat({ personIdFrom, personIdTo }) {
               : "[]"
           }
           
-          Please respond with the entry you have chosen from User B’s list and the generated question with the following format:
+          The user does not know about their grandpa's memories. 
 
-          {"entry": “—----------------”,
-          "question": “—----------------”}
-          
-          `,
-        },
-      ],
-      model: "gpt-4",
-    });
+          Find a memory from the user's grandpa that the user can relate to and tell it as a story about their grandpa to the user. Keep the story conversational and casual. Use "um"s. Don't make up details you don't have but you can embellish it. 
+          `;
 
-    const info = JSON.parse(response.data.completion.content);
-    console.log(info);
-    setInfo(info);
-
-    const pipeline1Prompt = `Have a conversation with the user starting with this question:
-
-   ${info.question}
-    
-    Ask the questions such that it is relevant to this memory from another person: ${
-      info.entry
-    }
-    
-    Then after three exchanges do as follows:
-    
-    You are also given a transcript of a memory provided by the user's grandfather: ${
-      info.entry
-    } To conclude the conversation, relay the memory to the user in a narrative story. You can add in some details and embellish it.  Do not add any details you don't know to be true.  Refer to the user's grandpa as "your grandpa". Do not restate the memory or introduce the story. Just tell the story. Here is the list of stories already shared by your friend:
-    ${
-      fromMemories
-        ? "[" +
-          fromMemories
-            .map((m) => {
-              return `"${m.memory}"`;
-            })
-            .join(", ") +
-          "]"
-        : "[]"
-    }`;
-
-    const pipeline2Prompt = `Your role is to ask someone about an unique experience they had or a follow up question to a previous experience they had. Imagine this person is a friend you had known for a long time but doesn’t know everything about.  Here is the list of stories already shared by your friend:  ${
-      fromMemories
-        ? "[" +
-          fromMemories
-            .map((m) => {
-              return `"${m.memory}"`;
-            })
-            .join(", ") +
-          "]"
-        : "[]"
-    }`;
+    const pipeline2Prompt = `Ask the user questions as if they are a friend you are meeting for coffee.  Keep the tone conversational and casual.`;
     setMessages([{ role: "system", content: pipeline1Prompt }]);
     setMessages2([{ role: "system", content: pipeline2Prompt }]);
+  };
+
+  useEffect(async () => {
+    updatePrompt();
   }, []);
 
   useEffect(() => {
@@ -231,11 +188,168 @@ export default function Chat({ personIdFrom, personIdTo }) {
             data_.completion,
           ]);
         }
+
+        const audio = await generateSpeech(data_.completion.content);
+
+        if (pipeline === true) {
+          console.log(
+            "data completeion for generating speech ",
+            data_.completion
+          );
+          const image = await generateImage(data_.completion.content);
+        }
       };
       reader.readAsDataURL(audioBlob);
     } catch (error) {
       console.log(error);
     } finally {
+    }
+  };
+
+  const generateImage = async (story) => {
+    const response = await fetch(`/api/openai/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: `Here is a story being told: ${story}. Summarize it concisely in terms of subject (who is in the story, not including the speaker), setting (where they are) and action (what they are doing). Remove any abstract details.`,
+          },
+        ],
+        model: "gpt-4",
+      }),
+    });
+
+    const res = await response.json();
+    const summary = res.completion.content;
+    console.log("summary ", summary);
+
+    const response_ = await fetch(`/api/openai/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: `Here is the breakdown of a story: ${summary}. Generate a concise image prompt. Include 'black and white image' in front of the generated prompt.`,
+          },
+        ],
+        model: "gpt-4",
+      }),
+    });
+
+    const res_ = await response_.json();
+    const prompt = res_.completion.content;
+    console.log("prompt ", prompt);
+
+    try {
+      const response = await axios.post(
+        "https://api.openai.com/v1/images/generations",
+        {
+          prompt: prompt,
+          size: "256x256",
+          response_format: "b64_json",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const res_ = await axios.post("/api/upload_image", {
+        url: response.data.data[0].url,
+        buffer: response.data.data[0].b64_json,
+      });
+      return;
+    } catch (error) {
+      console.error("Error calling API:", error);
+      throw error;
+    }
+  };
+
+  function playAudio(audioData) {
+    const context = new AudioContext();
+    const audioBuffer =
+      audioData instanceof ArrayBuffer
+        ? audioData
+        : new Uint8Array(audioData).buffer;
+
+    context.decodeAudioData(audioBuffer, function (buffer) {
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      source.start(0);
+    });
+  }
+
+  const generateSpeech = async (story) => {
+    try {
+      const response = await axios.post(
+        "https://api.openai.com/v1/audio/speech",
+        {
+          model: "tts-1",
+          input: story,
+          voice: "nova",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          responseType: "arraybuffer",
+        }
+      );
+
+      playAudio(response.data);
+    } catch (error) {
+      console.error("Error calling API:", error);
+      throw error;
+    }
+  };
+
+  const handleSwitchPipeline = async (pipeline) => {
+    if (pipeline) {
+      updatePrompt();
+    } else {
+      console.log("in pupeline 1");
+
+      // get chat completion
+      const response_ = await fetch(`/api/openai/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content:
+                "Given a conversation between a user and a system, summarize the memories of the user in first person point of view.",
+            },
+            { role: "user", content: JSON.stringify(messages2) },
+          ],
+          model: "gpt-4",
+        }),
+      });
+
+      const data_ = await response_.json();
+      const memory = data_.completion.content;
+
+      try {
+        axios.post("/api/memory_bank/save", {
+          personId: personIdFrom,
+          memory: memory,
+        });
+      } catch (e) {
+        console.log(e);
+      }
     }
   };
 
@@ -257,7 +371,7 @@ export default function Chat({ personIdFrom, personIdTo }) {
       </div>
 
       <div>
-        <h2>chat (pipeline 1)</h2>
+        <h2>Storytime (pipeline 1)</h2>
         {messages &&
           messages.map((m) => {
             return (
@@ -271,6 +385,7 @@ export default function Chat({ personIdFrom, personIdTo }) {
 
       <button
         onClick={() => {
+          handleSwitchPipeline(pipeline);
           setPipeline(!pipeline);
         }}
       >
@@ -278,7 +393,7 @@ export default function Chat({ personIdFrom, personIdTo }) {
       </button>
 
       <div>
-        <h2>chat (pipeline 2)</h2>
+        <h2>Question time (pipeline 2)</h2>
         {messages2 &&
           messages2.map((m) => {
             return (
