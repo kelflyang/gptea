@@ -1,5 +1,6 @@
 #include <TJpg_Decoder.h>
 #include <ArduinoJson.h> 
+#include <FastLED.h>
 
 // Include SD
 #define FS_NO_GLOBALS
@@ -104,29 +105,32 @@ void loop() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    int effect = fetchEffect();
+     int effect = fetchEffect();
     if (effect != previousEffect) {
       previousEffect = effect; // Update the previous effect only on change
       switch(effect) {
-        case 5:
-          Serial.println("Fetching image...");
-          fetch_and_store_image();
-          Serial.println("Displaying image...");
-          TJpgDec.drawSdJpg(0, 0, "/new.jpg");
-          break;
-        case 3:
-          Serial.println("Displaying white screen...");
-          tft.fillScreen(TFT_WHITE);
-          break;
-        case 7:
-          Serial.println("Displaying blinking red screen...");
-          displayBlinkingRedScreen();
-          break;
-        case 9:
-          Serial.println("Displaying fading orange ring...");
-          //displayFadingOrangeRing();
-          displayWobblyCircle();
-          break;
+           case 3: //testing
+            displayWobblyCircle();
+            break;
+          
+//        case 5:
+//          Serial.println("Fetching image...");
+//          fetch_and_store_image();
+//          Serial.println("Displaying image...");
+//          TJpgDec.drawSdJpg(0, 0, "/new.jpg");
+//          break;
+//        case 3:
+//          tft.fillScreen(TFT_WHITE);
+//          break;
+//        case 7:
+//          displayBlinkingRedScreen();
+//          break;
+//        case 9:
+//          displayWobblyCircle();
+//          break;
+//        case 11:
+//          displayWobblyCircle();
+//          break;
         default:
           Serial.println("Unknown effect.");
           break;
@@ -134,13 +138,18 @@ void loop() {
     } else {
       // Continue running animations for cases other than 5
       switch(effect) {
-        case 7:
-          displayBlinkingRedScreen();
-          break;
-        case 9:
-          //displayFadingOrangeRing();
+        
+         case 3: //testing
           displayWobblyCircle();
           break;
+          
+//        case 7:
+//          displayBlinkingRedScreen();
+//          break;
+//        case 9:
+//          displayWobblyCircle();
+//          break;
+
         default:
           break;
       }
@@ -149,7 +158,7 @@ void loop() {
     Serial.println("Skipping operations due to Wi-Fi issues.");
   }
 
-  delay(1000); // Repeat every 1 seconds
+  delay(500); // Repeat every 1 seconds
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -243,8 +252,7 @@ void displayFadingOrangeRing() {
     delay(10);
   }
   
-}+
-
+}
 
 
 
@@ -254,21 +262,26 @@ void displayWobblyCircle() {
   int radius = 100;
   int numVertices = 36; // Number of vertices for the polygon
   float angleIncrement = 2 * PI / numVertices;
+  float noiseScale = 0.2; // Scale for Perlin noise
 
-  tft.fillScreen(TFT_BLACK);
-  
   for (int frame = 0; frame < 360; frame += 10) {
-    float wobbleFactor = 20 * sin(radians(frame)); // Wobble amplitude
     tft.fillScreen(TFT_BLACK);
     
-    for (int i = 0; i < numVertices; i++) {
+    float firstX = centerX + (radius + (inoise8(0, frame * noiseScale * 255) / 255.0) * 20) * cos(0);
+    float firstY = centerY + (radius + (inoise8(0, frame * noiseScale * 255) / 255.0) * 20) * sin(0);
+    float prevX = firstX;
+    float prevY = firstY;
+    
+    for (int i = 1; i <= numVertices; i++) {
       float angle = i * angleIncrement;
-      float x1 = centerX + (radius + wobbleFactor * sin(angle * 5)) * cos(angle);
-      float y1 = centerY + (radius + wobbleFactor * sin(angle * 5)) * sin(angle);
-      float x2 = centerX + (radius + wobbleFactor * sin((angle + angleIncrement) * 5)) * cos(angle + angleIncrement);
-      float y2 = centerY + (radius + wobbleFactor * sin((angle + angleIncrement) * 5)) * sin(angle + angleIncrement);
-      tft.drawLine(x1, y1, x2, y2, TFT_WHITE);
+      float noise = inoise8(i * noiseScale * 255, frame * noiseScale * 255) / 255.0; // Perlin noise value between 0 and 1
+      float x = centerX + (radius + noise * 20) * cos(angle);
+      float y = centerY + (radius + noise * 20) * sin(angle);
+      tft.drawLine(prevX, prevY, x, y, TFT_WHITE);
+      prevX = x;
+      prevY = y;
     }
+    tft.drawLine(prevX, prevY, firstX, firstY, TFT_WHITE); // Close the loop
     delay(30);
   }
 }
